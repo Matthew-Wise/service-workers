@@ -1,56 +1,39 @@
-﻿var CACHE_NAME = 'my-site-cache-v1'
-var urlsToCache = [
-    '/css/umbraco-starterkit-style.css',
-    '/scripts/umbraco-starterkit-app.js',
-    'https://fonts.googleapis.com/css?family=Playfair+Display:400,700italic,700,400italic|Noto+Sans:400,700'
-];
-self.addEventListener('install', function (event) {
-    // Perform install steps
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(function (cache) {
-                console.log('Opened cache');
-                return cache.addAll(urlsToCache);
-            })
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/3.6.1/workbox-sw.js');
+
+if (workbox) {
+    workbox.routing.registerRoute(
+        /(^((?!App_Plugins|umbraco).)*(?:png|gif|jpg|jpeg|svg)(?:\?.*)?$)/,
+        workbox.strategies.staleWhileRevalidate({
+            cacheName: 'media',
+            plugins: [
+                new workbox.expiration.Plugin({
+                    maxEntries: 60,
+                    maxAgeSeconds: 7 * 24 * 60 * 60 // 7 Days
+                })
+            ]
+        }),
     );
-});
 
-var mediaRegx = new RegExp('\/media\/([0-9]{4,})/(.*)')
-self.addEventListener('fetch', function (event) {
-    event.respondWith(
-        caches.match(event.request)
-            .then(function (response) {
-                // Cache hit - return response
-                if (response) {
-                    console.log('cached:', event.request.url)
-                    return response;
-                }
-                var url = event.request.url;                
-                if (!mediaRegx.test(url))
-                    return fetch(event.request);
-
-                var fetchRequest = event.request.clone();
-
-                return fetch(fetchRequest).then(
-                    function (response) {
-                        // Check if we received a valid response
-                        if (!response || response.status !== 200 || response.type !== 'basic') {
-                            return response;
-                        }
-
-                        // IMPORTANT: Clone the response. A response is a stream
-                        // and because we want the browser to consume the response
-                        // as well as the cache consuming the response, we need
-                        // to clone it so we have two streams.
-                        var responseToCache = response.clone();
-
-                        caches.open(CACHE_NAME)
-                            .then(function (cache) {
-                                cache.put(event.request, responseToCache);
-                            });
-
-                        return response;
-                    })                
-            })
+    workbox.routing.registerRoute(
+        /^https:\/\/fonts\.googleapis\.com/,
+        workbox.strategies.staleWhileRevalidate({
+            cacheName: 'google-fonts-stylesheets'
+        }),
     );
-});
+
+    workbox.routing.registerRoute(
+        /^https:\/\/fonts\.gstatic\.com/,
+        workbox.strategies.cacheFirst({
+            cacheName: 'google-fonts-webfonts',
+            plugins: [
+                new workbox.cacheableResponse.Plugin({
+                    statuses: [0, 200]
+                }),
+                new workbox.expiration.Plugin({
+                    maxAgeSeconds: 60 * 60 * 24 * 365,
+                    maxEntries: 30
+                })
+            ]
+        }),
+    );
+}

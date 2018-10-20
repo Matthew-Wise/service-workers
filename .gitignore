@@ -26,3 +26,7 @@
 **/App_Data/Models/ood.flag
 /.vs
 /packages
+/.vs
+/ServiceWorkers/bin
+/ServiceWorkers/obj
+/ServiceWorkers/node_modules
